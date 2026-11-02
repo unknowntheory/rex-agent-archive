@@ -5,6 +5,8 @@ conversation is archived. Claude Code and Codex work out of the box; other
 agents can be added (see below)[^1]. Browse archived conversations from the
 command palette and resume one in a new tab, in the folder it ran in.
 
+https://github.com/user-attachments/assets/42ebecd8-d8ed-4ef0-a34f-4c6804cc6ee9
+
 ## Install
 
 ```sh
