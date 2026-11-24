@@ -1,46 +1,64 @@
 # Archived Agent Sessions for Rex
 
 Close a coding agent's tab in [Rex](https://www.superlogical.com/rex) and the
-conversation is archived. Claude Code and Codex work out of the box; other
-agents can be added (see below)[^1]. Browse archived conversations from the
-command palette and resume one in a new tab, in the folder it ran in.
+conversation is archived. Browse archived conversations from the command
+palette and resume one in a new tab, in the folder it ran in.
+
+Claude Code and Codex work out of the box. Other agents can be added (see
+[Adding an agent](#adding-an-agent)).
+
+## Requirements
+
+- **macOS.** Other platforms aren't supported.
+- **Rex** with a server at control API revision 17 or newer, which is what the
+  palette picker needs. Check with `rex api call server.status`. If it's
+  older, update Rex and restart its server.
+
+Nothing else: no jq, fzf or other tools to install.
 
 ## Install
+
+Run this from a Rex terminal:
 
 ```sh
 git clone https://github.com/unknowntheory/rex-agent-archive.git /tmp/rex-agent-archive
 sh /tmp/rex-agent-archive/install.sh
 ```
 
-Requires Rex, `fzf` and `jq` (`brew install fzf jq`).
+`install.sh`:
 
-`install.sh` copies this folder to `~/.config/rex/archive`, adds
-`require("archive")` to `~/.config/rex/init.lua`, registers a SessionStart hook
-for Claude Code and Codex (backing up their settings first), and reloads Rex.
-In Codex, you will have to approve the new hook with `/hooks`.
+1. copies this folder to `~/.config/rex/archive`
+2. adds `require("archive")` to `~/.config/rex/init.lua`
+3. registers a SessionStart hook for Claude Code (`~/.claude/settings.json`)
+   and Codex (`~/.codex/hooks.json`), backing each file up first
+4. reloads the Rex config and checks the setup
+
+In Codex, approve the new hook with `/hooks`.
+
+Only conversations started after installing are recorded.
 
 `sh install.sh --link` symlinks `~/.config/rex/archive` to the clone instead
 of copying it, so edits in the clone are live. Use it if you're changing the
-code. Your own `agents.local.json` is ignored by git.
+code.
 
 ## Use
 
-Command palette → **Archived Agent Sessions**
+All from the command palette:
 
-- Each row: last active time, agent, project, branch, title (Claude's own
-  title, otherwise your first message).
-- The preview shows your first prompt and the agent's last replies.
-- `Enter` resumes it in a new tab of the current session, using the agent's
-  `resume` command from `agents.json`. `Ctrl-D` removes it from the list; the transcript is kept.
-
-
-**Check Agent Archive Setup** in the palette (or `sh check.sh`) reports any
-missing command, hook or config line.
+- **Archived Agent Sessions** lists archived conversations, newest first. Each
+  row shows the title (Claude's own title, otherwise your first message), the
+  agent, project and branch, and when it was last active. Type to filter.
+  `Enter` resumes it in a new tab of the current session.
+- **Remove Archived Agent Sessions…** lets you tick conversations to remove
+  from the list. Their transcripts are kept.
+- **Check Agent Archive Setup** reports anything missing: an old Rex server, an
+  unregistered hook, a missing `require` line. From a terminal:
+  `rex do ~/.config/rex/archive/check.lua`.
 
 ## Adding an agent
 
-Two steps, for any agent that can run a command when a conversation starts and
-pass it JSON with a `session_id`:
+Any agent that can run a command when a conversation starts, and pass it JSON
+with a `session_id`, can be added in two steps:
 
 1. **Hook.** Have the agent run this at session start, with its hook payload on
    stdin (use the agent's name in place of `myagent`):
@@ -50,51 +68,55 @@ pass it JSON with a `session_id`:
    ```
 
    `cwd` and `transcript_path` in the payload are used when present. Without a
-   `cwd` the pane's directory is recorded.
+   `cwd`, the pane's directory is recorded.
 
-2. **Settings.** Add the agent to `agents.local.json` next to `agents.json`
-   (it overrides `agents.json` and survives reinstalls):
+2. **Settings.** Add the agent to `agents.local.json` next to `agents.json`. It
+   overrides `agents.json`, survives reinstalls and is ignored by git:
 
    ```json
    {
      "myagent": {
        "name": "My Agent",
-       "mark": "◆",
-       "color": "120;180;250",
        "resume": "myagent --resume {id}"
      }
    }
    ```
 
-   `{id}` is replaced with the conversation ID. `color` is optional
-   (`R;G;B`). Without a `resume` command the tab opens in the right folder and
-   says so.
+   `{id}` is replaced with the conversation ID. Without a `resume` command the
+   tab opens in the right folder and says so.
 
-Previews read Claude Code's and Codex's transcript formats. Other agents are
-still listed and resumable, without a title or preview unless their transcript
-uses one of those formats.
+Titles are read from Claude Code's and Codex's transcript formats. Other agents
+are listed as "untitled" unless their transcript uses one of those formats.
 
 ## How it works
 
-The hook records, at the start of each agent conversation, which Rex pane it is
-running in (`~/.local/share/rex-archive/agents/<id>.json`). A conversation is
-archived when that pane no longer exists (tab closed, session killed, Rex
+The hook records, at the start of each agent conversation, which Rex pane it
+is running in (`~/.local/share/rex-archive/agents/<id>.json`). A conversation
+is archived when that pane no longer exists (tab closed, session killed, Rex
 restarted) or a newer conversation started in the same pane. Nothing runs in
-the background. Titles and previews come from the agent's own transcript.
-
-Only conversations started after installing are recorded.
+the background. Titles and branches come from the agent's own transcript.
 
 ## Files
 
 | File | Does |
 | --- | --- |
-| `init.lua` | The palette actions |
-| `agents.json` | Name, mark, color and resume command per agent |
-| `agent-hook.sh` | SessionStart hook; records conversation → pane |
-| `browse.sh` | The fzf browser |
-| `restore.lua` | Opens the resume tab (`rex do`) |
-| `check.sh` | Setup check |
-| `deps.sh` | Missing-command message for the popups |
+| `init.lua` | The palette actions: listing, resuming and removing |
+| `check.lua` | Setup check, for the palette action and `rex do` |
+| `agents.json` | Name and resume command per agent |
+| `agent-hook.sh` | SessionStart hook; hands the payload to `hook.lua` |
+| `hook.lua` | Records which conversation runs in which pane |
 | `install.sh` | Installer |
 
-This was only tested with claude code and codex[^1]
+## Uninstall
+
+1. Remove the `require("archive")` line from `~/.config/rex/init.lua`, then run
+   `rex config reload`.
+2. Remove the `archive/agent-hook.sh` hook from `~/.claude/settings.json` and
+   `~/.codex/hooks.json`.
+3. Delete `~/.config/rex/archive` and `~/.local/share/rex-archive`.
+
+## Limitations
+
+- macOS only.
+- Only tested with Claude Code and Codex.
+- Conversations started before installing aren't recorded.

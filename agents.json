@@ -1,13 +1,10 @@
 {
   "claude": {
     "name": "Claude",
-    "mark": "✻",
-    "color": "217;119;87",
     "resume": "claude --resume {id}"
   },
   "codex": {
     "name": "Codex",
-    "mark": ">_",
     "resume": "codex resume {id}"
   }
 }
