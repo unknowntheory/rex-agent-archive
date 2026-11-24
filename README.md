@@ -16,7 +16,7 @@ Claude Code and Codex work out of the box. Other agents can be added (see
 
 Nothing else: no jq, fzf or other tools to install.
 
-https://github.com/user-attachments/assets/42ebecd8-d8ed-4ef0-a34f-4c6804cc6ee9
+https://github.com/user-attachments/assets/aaa66928-9325-4db6-9dbd-6fea68b59e2a
 
 ## Install
 
